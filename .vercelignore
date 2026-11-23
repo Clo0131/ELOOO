@@ -1,0 +1,11 @@
+# Local data and tooling never need to be uploaded with a deployment.
+coolstock.db
+coolstock-*.db
+*.db-wal
+*.db-shm
+__pycache__/
+*.pyc
+.agents/
+.codex/
+.freebuff/
+skills-lock.json

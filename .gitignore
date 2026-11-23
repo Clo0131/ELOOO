@@ -1,0 +1,14 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# SQLite temporary and journal files
+*.db-wal
+*.db-shm
+
+# Local agent and editor tooling
+.freebuff/
+.agents/
+.codex/
+skills-lock.json

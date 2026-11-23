@@ -6,14 +6,14 @@ Run:    python app.py            then open  http://localhost:8000
 Option: python app.py --lan      lets other devices on your Wi-Fi/LAN connect
         python app.py --port 9000 --no-browser
 
-Keep this file, logic.py, coolstock.db and the assets folder in the same folder.
+Keep this file, logic.py, .env and the assets folder in the same folder.
 This file holds the HTML/CSS/JavaScript screens, the URL routes and the HTTP server.
 All of the real work (database, rules, algorithms) is in logic.py.
 
 Deploy on Vercel: api/index.py is the function and vercel.json sends every URL to it;
-public/font/nunito.woff2 is served as a static file there. A serverless function cannot
-write inside the code folder, so on Vercel the database is created in /tmp: data does not
-survive new instances or new deployments (set COOLSTOCK_DB to a writable path to change that).
+public/font/nunito.woff2 is served as a static file there. The data lives in Supabase
+(PostgreSQL): the connection string comes from DATABASE_URL, which is read from .env
+locally and from the project's environment variables on Vercel.
 """
 import json
 import os
@@ -103,7 +103,7 @@ class Handler(BaseHTTPRequestHandler):
                 if m:
                     if not user or user["role"] not in ("owner", "employee"):
                         return self.redirect("/")
-                    s = c.execute("SELECT user FROM sales WHERE id=? AND shop_id=?", (int(m.group(1)), user["shop"])).fetchone()
+                    s = c.execute("SELECT \"user\" FROM sales WHERE id=? AND shop_id=?", (int(m.group(1)), user["shop"])).fetchone()
                     if not s:
                         return self.reply(404, b"Invoice not found", "text/plain")
                     if user["role"] == "employee" and s["user"] != user["username"]:
@@ -133,7 +133,7 @@ class Handler(BaseHTTPRequestHandler):
                 write = method != "GET"
                 try:
                     if write:
-                        c.execute("BEGIN IMMEDIATE")
+                        c.execute("BEGIN")
                     data = fn(c, ctx, parse_qs(url.query), body, *mt.groups())
                     if write:
                         c.execute("COMMIT")

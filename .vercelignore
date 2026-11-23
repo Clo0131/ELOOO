@@ -1,4 +1,5 @@
-# Local data and tooling never need to be uploaded with a deployment.
+# Local data, secrets and tooling never need to be uploaded with a deployment.
+.env
 coolstock.db
 coolstock-*.db
 *.db-wal

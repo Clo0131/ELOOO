@@ -3,9 +3,15 @@ __pycache__/
 *.py[cod]
 *$py.class
 
-# SQLite temporary and journal files
+# Local SQLite data (the app uses Supabase/PostgreSQL now; this file holds real
+# password hashes and must not be committed)
+coolstock.db
+coolstock-*.db
 *.db-wal
 *.db-shm
+
+# Local secrets (Supabase connection string)
+.env
 
 # Local agent and editor tooling
 .freebuff/

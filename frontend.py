@@ -420,8 +420,11 @@ label{display:block;font-size:12px;color:var(--mut);margin:12px 0 6px;font-weigh
 .stats div{padding:0;background:none;border-radius:0}
 .stats small{display:block;color:var(--mut);font-size:12px}.stats b{font-size:17px;font-weight:700}
 .posg{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:start}.cartp{position:sticky;top:74px}
-.pi{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line)}
-.pi:last-child{border:0}.pi.dis{opacity:.55}#plist{margin-top:10px;max-height:66vh;overflow:auto}
+.pi{display:grid;grid-template-columns:1fr auto 96px;gap:16px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line)}
+.pi:last-child{border:0}.pi.dis{opacity:.55}.pi>div:first-child{min-width:0}
+.pi-price{text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pi-act{display:flex;justify-content:flex-end}
+#plist{margin-top:10px;max-height:66vh;overflow:auto}
 .cl{display:grid;grid-template-columns:1fr 60px 104px 26px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .cl input{padding:5px 7px;width:100%;text-align:right}.tot{margin-top:12px}.tot div{display:flex;justify-content:space-between;padding:4px 0}
 .tot .big{font-size:21px;font-weight:700;letter-spacing:-.02em;border-top:1px solid var(--line);margin-top:6px;padding-top:10px}
@@ -446,7 +449,7 @@ label{display:block;font-size:12px;color:var(--mut);margin:12px 0 6px;font-weigh
 @media(max-width:1360px){.g3{grid-template-columns:1fr}}
 @media(max-width:1180px){.g2,.posg{grid-template-columns:1fr}.cartp{position:static}.kpis.k4,.kpis.k3{grid-template-columns:repeat(2,minmax(0,1fr))}}
 @media(max-width:820px){.app{grid-template-columns:1fr;padding:10px}.main{padding:0}#side{position:fixed;top:10px;left:-300px;width:280px;height:calc(100vh - 20px);z-index:50;border-radius:24px;transition:left .2s var(--ease-out)}#side.open{left:10px}#burger{display:inline-block}.top{margin-top:0;border-radius:18px;padding:10px 16px;gap:8px}.page{padding:22px 16px 60px}.kpis,.kpis.k4,.kpis.k3{grid-template-columns:repeat(2,minmax(0,1fr))}.ph h2{font-size:29px}}
-@media(max-width:560px){.r2,.r3{grid-template-columns:1fr}.page{padding:20px 14px 56px}.ph{margin-bottom:22px}.ph h2{font-size:27px}.kpi{padding:17px 18px}.kpi .v{font-size:27px}.cl{grid-template-columns:1fr 52px 90px 26px}.ln{grid-template-columns:1fr 70px 96px 26px}.top .gs input{padding:10px 12px 10px 36px;font-size:13px}.invstats{grid-template-columns:1fr}.invstats>div{padding:12px 0;border-left:0;border-top:1px solid var(--line)}.invstats>div:first-child{padding-top:0;border-top:0}.invstats>div:last-child{padding-bottom:0}th,td{padding:9px 8px}th{font-size:9.5px}td{font-size:12.5px}td.wrap{min-width:100px}}
+@media(max-width:560px){.r2,.r3{grid-template-columns:1fr}.page{padding:20px 14px 56px}.ph{margin-bottom:22px}.ph h2{font-size:27px}.kpi{padding:17px 18px}.kpi .v{font-size:27px}.cl{grid-template-columns:1fr 52px 90px 26px}.ln{grid-template-columns:1fr 70px 96px 26px}.pi{grid-template-columns:1fr auto auto;gap:10px}.top .gs input{padding:10px 12px 10px 36px;font-size:13px}.invstats{grid-template-columns:1fr}.invstats>div{padding:12px 0;border-left:0;border-top:1px solid var(--line)}.invstats>div:first-child{padding-top:0;border-top:0}.invstats>div:last-child{padding-bottom:0}th,td{padding:9px 8px}th{font-size:9.5px}td{font-size:12.5px}td.wrap{min-width:100px}}
 @media print{#side,.top,.pa,.bar{display:none!important}.app{display:block}}
 /* ---- form control polish ---- */
 input[type=number]{-moz-appearance:textfield;appearance:textfield}
@@ -815,8 +818,8 @@ V.pos=async()=>{
 };
 function drawPList(){
   const w=words(POSQ),rows=POSP.filter(p=>w.every(x=>hay(p).includes(x))).slice(0,60);
-  $('#plist').innerHTML=rows.map(p=>`<div class="pi ${p.available<=0?'dis':''}"><div>${pname(p)}</div><div style="text-align:right;white-space:nowrap">${priceCell(p)}<div class="sub">${p.available>0?p.available+' available':'out of stock'}</div></div>
-   <div>${p.available>0?`<button class="b sm" data-act="padd" data-id="${p.id}">Add</button>`:`<button class="b sm g" data-act="subfor" data-id="${p.id}">Alternatives</button>`}</div></div>`).join('')||'<div class="empty">No matching products.</div>';
+  $('#plist').innerHTML=rows.map(p=>`<div class="pi ${p.available<=0?'dis':''}"><div>${pname(p)}</div><div class="pi-price">${priceCell(p)}<div class="sub">${p.available>0?p.available+' available':'out of stock'}</div></div>
+   <div class="pi-act">${p.available>0?`<button class="b sm" data-act="padd" data-id="${p.id}">Add</button>`:`<button class="b sm g" data-act="subfor" data-id="${p.id}">Alternatives</button>`}</div></div>`).join('')||'<div class="empty">No matching products.</div>';
 }
 ACT.padd=id=>{const p=PC[id],held=PRE&&PRE.product_id==p.id?PRE.qty:0,max=p.available+held,ex=CART.find(i=>i.id==p.id);
   if(ex){if(ex.qty<ex.max)ex.qty++;else return toast('No more units available.',true)}else{if(max<=0)return toast('Out of stock.',true);CART.push({id:p.id,label:p.brand+' '+p.model,sku:p.sku,list:p.eff_price,unit:p.eff_price,qty:1,max,cost:p.cost})}

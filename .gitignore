@@ -1,11 +1,10 @@
-# Byte-compiled / optimized / DLL files
+ Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
 
-# Local SQLite data (the app uses Supabase/PostgreSQL now; this file holds real
-# password hashes and must not be committed)
-coolstock.db
+# SQLite temp files (coolstock.db itself is now committed; keep the repo PRIVATE,
+# it holds real password hashes)
 coolstock-*.db
 *.db-wal
 *.db-shm

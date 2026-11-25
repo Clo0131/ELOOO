@@ -80,8 +80,12 @@ class Handler(BaseHTTPRequestHandler):
     def handle_any(self, method):
         url = urlparse(self.path)
         path = url.path
-        if path.rstrip('/') in ('/api/index', '/api/index.py'):   # Vercel sometimes reports the function path
-            path = '/'
+        # A rewrite to this function can preserve the original URL or expose the
+        # function path followed by the original URL. Normalize both forms.
+        for prefix in ("/api/index", "/api/index.py"):
+            if path == prefix or path.startswith(prefix + "/"):
+                path = path[len(prefix):] or "/"
+                break
         ck = SimpleCookie(self.headers.get("Cookie", ""))
         sid = ck["sid"].value if "sid" in ck else None
         c = db()

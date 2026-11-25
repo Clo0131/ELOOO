@@ -1078,6 +1078,12 @@ try{const t=localStorage.getItem('cs-theme');if(t)document.documentElement.datas
 """
 
 
+# Inline the logo as a data URI so the page never depends on a separate image request.
+_LOGO_URI = "data:image/png;base64," + base64.b64encode(LOGO_PNG).decode()
+LOGIN_HTML = LOGIN_HTML.replace('"/logo.png"', '"' + _LOGO_URI + '"')
+APP_HTML = APP_HTML.replace('"/logo.png"', '"' + _LOGO_URI + '"')
+
+
 def main():
     args = sys.argv[1:]
     port = int(os.environ.get("PORT", "8000"))

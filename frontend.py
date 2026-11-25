@@ -423,6 +423,7 @@ dialog[open]{animation:dlg-in .18s var(--ease-out)}dialog[open]::backdrop{animat
 .x{background:var(--btn2);border:0;border-radius:50%;width:32px;height:32px;display:grid;place-items:center;cursor:pointer;color:var(--mut);box-shadow:var(--btn2-sh);transition:transform .15s var(--ease-out),box-shadow .15s var(--ease-out)}.x:hover{transform:translateY(-1px);color:var(--ink)}.x:active{transform:translateY(1px);box-shadow:var(--sh-in)}
 .mb{padding:4px 28px;max-height:72vh;overflow:auto}
 .acts{display:flex;justify-content:flex-end;gap:10px;padding:18px 28px 26px}
+.acts.sale-actions{justify-content:space-between;align-items:center}
 .mactions{display:flex;gap:8px;flex-wrap:wrap;margin:18px 0 4px;padding-top:18px;border-top:1px solid var(--line)}
 label{display:block;font-size:12px;color:var(--mut);margin:12px 0 6px;font-weight:600}.mb input,.mb select,.mb textarea{width:100%}
 .r2{display:grid;grid-template-columns:1fr 1fr;gap:12px}.r3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px}
@@ -434,7 +435,9 @@ label{display:block;font-size:12px;color:var(--mut);margin:12px 0 6px;font-weigh
 .stats div{padding:0;background:none;border-radius:0}
 .stats small{display:block;color:var(--mut);font-size:12px}.stats b{font-size:17px;font-weight:700}
 .posg{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:start}.cartp{position:sticky;top:74px}
-.pi{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line)}
+.pi{display:grid;grid-template-columns:minmax(0,1fr) 130px 88px;gap:12px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line)}
+.pi>div:nth-child(2){text-align:right;white-space:nowrap;font-variant-numeric:tabular-nums}
+.pi>div:last-child{justify-self:end}
 .pi:last-child{border:0}.pi.dis{opacity:.55}#plist{margin-top:10px;max-height:66vh;overflow:auto}
 .cl{display:grid;grid-template-columns:1fr 60px 104px 26px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .cl input{padding:5px 7px;width:100%;text-align:right}.tot{margin-top:12px}.tot div{display:flex;justify-content:space-between;padding:4px 0}
@@ -581,9 +584,9 @@ async function api(path,method='GET',body){
 function toast(m,err){const t=$('#toast');t.textContent=m;t.className=err?'show err':'show';clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),4200)}
 async function run(fn){try{return await fn()}catch(e){toast(e.message,true)}}
 function closeModal(){const d=$('#dlg');if(d.open)d.close()}
-function modal(title,html,onSubmit,okText,wide){
+function modal(title,html,onSubmit,okText,wide,actionsHtml){
   const f=$('#dform'); $('#dlg').className=wide?'wide':'';
-  f.innerHTML=`<div class="mh"><h3>${title}</h3><button type="button" class="x" data-act="close" aria-label="Close">${xIcon}</button></div><div class="mb">${html}</div><div class="acts">${onSubmit?`<button type="button" class="b g" data-act="close">Cancel</button><button type="submit" class="b">${okText||'Save'}</button>`:`<button type="button" class="b g" data-act="close">Close</button>`}</div>`;
+  f.innerHTML=`<div class="mh"><h3>${title}</h3><button type="button" class="x" data-act="close" aria-label="Close">${xIcon}</button></div><div class="mb">${html}</div><div class="acts ${actionsHtml?'sale-actions':''}">${actionsHtml||(onSubmit?`<button type="button" class="b g" data-act="close">Cancel</button><button type="submit" class="b">${okText||'Save'}</button>`:`<button type="button" class="b g" data-act="close">Close</button>`)}</div>`;
   f.onsubmit=ev=>{ev.preventDefault();if(!onSubmit)return;const o=Object.fromEntries(new FormData(f));run(async()=>{const r=await onSubmit(o,f);if(r!==false)closeModal()})};
   if(!$('#dlg').open)$('#dlg').showModal();
 }
@@ -860,7 +863,7 @@ V.pos=async()=>{
 };
 function drawPList(){
   const w=words(POSQ),rows=POSP.filter(p=>w.every(x=>hay(p).includes(x))).slice(0,60);
-  $('#plist').innerHTML=rows.map(p=>`<div class="pi ${p.available<=0?'dis':''}"><div>${pname(p)}</div><div style="text-align:right;white-space:nowrap">${priceCell(p)}<div class="sub">${p.available>0?p.available+' available':'out of stock'}</div></div>
+  $('#plist').innerHTML=rows.map(p=>`<div class="pi ${p.available<=0?'dis':''}"><div>${pname(p)}</div><div>${priceCell(p)}<div class="sub">${p.available>0?p.available+' available':'out of stock'}</div></div>
    <div>${p.available>0?`<button class="b sm" data-act="padd" data-id="${p.id}">Add</button>`:`<button class="b sm g" data-act="subfor" data-id="${p.id}">Alternatives</button>`}</div></div>`).join('')||'<div class="empty">No matching products.</div>';
 }
 ACT.padd=id=>{const p=PC[id],held=PRE&&PRE.product_id==p.id?PRE.qty:0,max=p.available+held,ex=CART.find(i=>i.id==p.id);
@@ -892,8 +895,8 @@ ACT.clearcart=()=>{CART=[];PRE=null;POSF.res='';drawCart()};
 ACT.pay=async()=>{
   const r=await api('/sales','POST',{customer:POSF.customer,phone:POSF.phone,payment:POSF.payment,items:CART.map(i=>({product_id:i.id,qty:i.qty,price:i.unit}))});
   CART=[];PRE=null;POSF={customer:'',phone:'',payment:'Cash',note:''};
-  modal('Sale complete',`<div class="note"><b>${esc(r.invoice_no)}</b> · total ${peso(r.total)}</div><p>Stock was deducted and the sale was added to the ledger.</p>
-   <p><a class="b" href="/invoice/${r.id}" target="_blank">Print invoice</a></p>`,null);
+  modal('Sale complete',`<div class="note"><b>${esc(r.invoice_no)}</b> · total ${peso(r.total)}</div><p>Stock was deducted and the sale was added to the ledger.</p>`,null,null,false,
+   `<a class="b" href="/invoice/${r.id}" target="_blank">Print invoice</a><button type="button" class="b g" data-act="close">Close</button>`);
   await V.pos();
 };
 

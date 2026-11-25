@@ -80,6 +80,8 @@ class Handler(BaseHTTPRequestHandler):
     def handle_any(self, method):
         url = urlparse(self.path)
         path = url.path
+        if path.rstrip('/') in ('/api/index', '/api/index.py'):   # Vercel sometimes reports the function path
+            path = '/'
         ck = SimpleCookie(self.headers.get("Cookie", ""))
         sid = ck["sid"].value if "sid" in ck else None
         c = db()

@@ -430,7 +430,7 @@ label{display:block;font-size:12px;color:var(--mut);margin:12px 0 6px;font-weigh
 .stats div{padding:0;background:none;border-radius:0}
 .stats small{display:block;color:var(--mut);font-size:12px}.stats b{font-size:17px;font-weight:700}
 .posg{display:grid;grid-template-columns:1.25fr 1fr;gap:20px;align-items:start}.cartp{position:sticky;top:74px}
-.pi{display:grid;grid-template-columns:minmax(0,1fr) 120px 104px;gap:10px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line)}.pi>div:nth-child(2),.pi>div:last-child{text-align:right}
+.pi{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 2px;border-bottom:1px solid var(--line)}
 .pi:last-child{border:0}.pi.dis{opacity:.55}#plist{margin-top:10px;max-height:66vh;overflow:auto}
 .cl{display:grid;grid-template-columns:1fr 60px 104px 26px;gap:6px;align-items:center;padding:10px 0;border-bottom:1px solid var(--line)}
 .cl input{padding:5px 7px;width:100%;text-align:right}.tot{margin-top:12px}.tot div{display:flex;justify-content:space-between;padding:4px 0}
@@ -577,9 +577,9 @@ async function api(path,method='GET',body){
 function toast(m,err){const t=$('#toast');t.textContent=m;t.className=err?'show err':'show';clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),4200)}
 async function run(fn){try{return await fn()}catch(e){toast(e.message,true)}}
 function closeModal(){const d=$('#dlg');if(d.open)d.close()}
-function modal(title,html,onSubmit,okText,wide,extra){
+function modal(title,html,onSubmit,okText,wide){
   const f=$('#dform'); $('#dlg').className=wide?'wide':'';
-  f.innerHTML=`<div class="mh"><h3>${title}</h3><button type="button" class="x" data-act="close" aria-label="Close">${xIcon}</button></div><div class="mb">${html}</div><div class="acts">${onSubmit?`<button type="button" class="b g" data-act="close">Cancel</button><button type="submit" class="b">${okText||'Save'}</button>`:`${extra||''}<button type="button" class="b g" data-act="close">Close</button>`}</div>`;
+  f.innerHTML=`<div class="mh"><h3>${title}</h3><button type="button" class="x" data-act="close" aria-label="Close">${xIcon}</button></div><div class="mb">${html}</div><div class="acts">${onSubmit?`<button type="button" class="b g" data-act="close">Cancel</button><button type="submit" class="b">${okText||'Save'}</button>`:`<button type="button" class="b g" data-act="close">Close</button>`}</div>`;
   f.onsubmit=ev=>{ev.preventDefault();if(!onSubmit)return;const o=Object.fromEntries(new FormData(f));run(async()=>{const r=await onSubmit(o,f);if(r!==false)closeModal()})};
   if(!$('#dlg').open)$('#dlg').showModal();
 }
@@ -888,7 +888,8 @@ ACT.clearcart=()=>{CART=[];PRE=null;POSF.res='';drawCart()};
 ACT.pay=async()=>{
   const r=await api('/sales','POST',{customer:POSF.customer,phone:POSF.phone,payment:POSF.payment,items:CART.map(i=>({product_id:i.id,qty:i.qty,price:i.unit}))});
   CART=[];PRE=null;POSF={customer:'',phone:'',payment:'Cash',note:''};
-  modal('Sale complete',`<div class="note"><b>${esc(r.invoice_no)}</b> · total ${peso(r.total)}</div><p>Stock was deducted and the sale was added to the ledger.</p>`,null,'',false,`<a class="b" href="/invoice/${r.id}" target="_blank">Print invoice</a>`);
+  modal('Sale complete',`<div class="note"><b>${esc(r.invoice_no)}</b> · total ${peso(r.total)}</div><p>Stock was deducted and the sale was added to the ledger.</p>
+   <p><a class="b" href="/invoice/${r.id}" target="_blank">Print invoice</a></p>`,null);
   await V.pos();
 };
 

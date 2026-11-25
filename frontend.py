@@ -1079,7 +1079,8 @@ try{const t=localStorage.getItem('cs-theme');if(t)document.documentElement.datas
   $('#me').innerHTML=`<div class="me-info"><b>${esc(ME.name)}</b><small>${({owner:'Shop Owner',employee:'Sales staff',purchasing:'Purchasing'})[ME.role]}</small></div><div class="me-actions"><button class="ib" data-act="pw">Password</button><button class="ib" data-act="logout">Sign out</button></div>`;
   syncTheme();
   if(can('owner')){$('#bell').style.display='';run(async()=>{const a=await api('/alerts');$('#belln').textContent=a.length})}
-  if(!location.hash)location.hash='#dash';else render();
+  if(!location.hash)history.replaceState(null,'','#dash');
+  await render();
 })();
 </script></body></html>
 """

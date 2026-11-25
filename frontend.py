@@ -708,6 +708,8 @@ const NAVI={
  audit:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="10" cy="10" r="6.8"/><path d="M10 5.8V10l2.8 1.7"/></svg>',
  users:'<svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="8" cy="6.8" r="2.8"/><path d="M3.2 16.2c0-2.7 2.1-4.4 4.8-4.4s4.8 1.7 4.8 4.4"/><path d="M13.4 4.4a2.8 2.8 0 0 1 0 5.4M14.8 12.4c1.6.6 2.6 1.9 2.6 3.8"/></svg>'
 };
+let sideT=null;
+function setSide(on){clearTimeout(sideT);const sd=$('#side');if(!sd)return;sd.classList.toggle('open',!!on);document.body.classList.toggle('sideopen',!!on)}
 function go(t){if(location.hash==='#'+t)render();else location.hash='#'+t}
 async function render(){
   const t=(location.hash||'#dash').slice(1);const n=NAV.find(x=>x[0]===t&&x[0]!=='#'&&x[2].includes(ME.role));const tab=n?t:'dash';
@@ -1060,8 +1062,6 @@ new MutationObserver(stepper).observe(document.body,{childList:true,subtree:true
 (async()=>{
   
 /* sidebar: hidden until the mouse nears the left edge */
-let sideT=null;
-function setSide(on){clearTimeout(sideT);const sd=$('#side');if(!sd)return;sd.classList.toggle('open',!!on);document.body.classList.toggle('sideopen',!!on)}
 document.addEventListener('mousemove',e=>{
   const sd=$('#side');if(!sd)return;const open=sd.classList.contains('open');
   if(e.clientX<=18){if(!open)setSide(true);else clearTimeout(sideT)}

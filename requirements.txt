@@ -1,1 +1,1 @@
-psycopg[binary]==3.3.7
+psycopg[binary,pool]==3.3.7

@@ -63,11 +63,13 @@ class Handler(BaseHTTPRequestHandler):
         self.send_response(code)
         self.send_header("Content-Type", ctype + ("; charset=utf-8" if ctype.startswith("text") or ctype == "application/json" else ""))
         self.send_header("Content-Length", str(len(data)))
-        self.send_header("Cache-Control", "no-store")
+        response_headers = headers or {}
+        self.send_header("Cache-Control", next((v for k, v in response_headers.items() if k.lower() == "cache-control"), "no-store"))
         self.send_header("X-Content-Type-Options", "nosniff")
         self.send_header("X-Frame-Options", "DENY")
-        for k, v in (headers or {}).items():
-            self.send_header(k, v)
+        for k, v in response_headers.items():
+            if k.lower() != "cache-control":
+                self.send_header(k, v)
         self.end_headers()
         self.wfile.write(data)
 
@@ -86,6 +88,16 @@ class Handler(BaseHTTPRequestHandler):
             if path == prefix or path.startswith(prefix + "/"):
                 path = path[len(prefix):] or "/"
                 break
+        if method == "GET" and path in ("/logo.png", "/font/nunito.woff2"):
+            if path == "/logo.png":
+                return self.reply(200, LOGO_PNG, "image/png", {"Cache-Control": "public, max-age=86400"})
+            fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "nunito.woff2")
+            try:
+                with open(fp, "rb") as f:
+                    data = f.read()
+            except OSError:
+                return self.reply(404, b"Font not found", "text/plain")
+            return self.reply(200, data, "font/woff2", {"Cache-Control": "public, max-age=86400"})
         ck = SimpleCookie(self.headers.get("Cookie", ""))
         sid = ck["sid"].value if "sid" in ck else None
         c = db()
@@ -94,16 +106,6 @@ class Handler(BaseHTTPRequestHandler):
             user = session_user(c, sid)
             _t.shop = user["shop"] if user else None
             if method == "GET":
-                if path == "/logo.png":
-                    return self.reply(200, LOGO_PNG, "image/png")
-                if path == "/font/nunito.woff2":
-                    fp = os.path.join(os.path.dirname(os.path.abspath(__file__)), "assets", "nunito.woff2")
-                    try:
-                        with open(fp, "rb") as f:
-                            data = f.read()
-                    except OSError:
-                        return self.reply(404, b"Font not found", "text/plain")
-                    return self.reply(200, data, "font/woff2")
                 if path in ("/", "/index.html"):
                     return self.reply(200, (APP_HTML if user else LOGIN_HTML).replace("__APP__", APP_NAME).encode(), "text/html")
                 if path == "/login":

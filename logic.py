@@ -20,6 +20,7 @@ import time
 from datetime import datetime, timedelta
 
 import psycopg
+from psycopg_pool import ConnectionPool
 from psycopg.pq import TransactionStatus
 from psycopg.rows import dict_row
 
@@ -41,6 +42,8 @@ def _load_env():
 
 _load_env()
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
+_DB_POOL = None
+_DB_POOL_LOCK = threading.Lock()
 FMT = "%Y-%m-%d %H:%M:%S"
 PH_OFFSET = timedelta(hours=8)
 PW_ITER = 150_000
@@ -102,8 +105,9 @@ class _DB:
     """A small sqlite3-shaped wrapper around one PostgreSQL connection, so the handlers
     keep their SQL: ? placeholders become %s and rows come back as dicts."""
 
-    def __init__(self, conn):
+    def __init__(self, conn, pool):
         self._conn = conn
+        self._pool = pool
 
     def execute(self, sql, params=()):
         return self._conn.execute(sql.replace("?", "%s"), params)
@@ -113,17 +117,30 @@ class _DB:
         return self._conn.info.transaction_status != TransactionStatus.IDLE
 
     def close(self):
-        self._conn.close()
+        if self._conn is not None:
+            conn, self._conn = self._conn, None
+            self._pool.putconn(conn)
 
 
 def db():
+    global _DB_POOL
     if not DATABASE_URL:
         raise RuntimeError("DATABASE_URL is not set. Put the Supabase connection string in .env "
                            "(DATABASE_URL=postgresql://...) or in the environment.")
     url = DATABASE_URL
     if "sslmode=" not in url:
         url += ("&" if "?" in url else "?") + "sslmode=require"
-    return _DB(psycopg.connect(url, row_factory=dict_row, autocommit=True, connect_timeout=15))
+    if _DB_POOL is None:
+        with _DB_POOL_LOCK:
+            if _DB_POOL is None:
+                pool = ConnectionPool(
+                    conninfo=url,
+                    kwargs={"row_factory": dict_row, "autocommit": True, "connect_timeout": 15},
+                    min_size=1, max_size=2, timeout=15, open=False,
+                )
+                pool.open(wait=False)
+                _DB_POOL = pool
+    return _DB(_DB_POOL.getconn(), _DB_POOL)
 
 
 def hash_pw(pw, salt=None):

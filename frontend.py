@@ -715,11 +715,13 @@ const NAVI={
 let sideT=null;
 function setSide(on){clearTimeout(sideT);const sd=$('#side');if(!sd)return;sd.classList.toggle('open',!!on);document.body.classList.toggle('sideopen',!!on)}
 function go(t){if(location.hash==='#'+t)render();else location.hash='#'+t}
+let renderVersion=0;
 async function render(){
+  const version=++renderVersion;
   const t=(location.hash||'#dash').slice(1);const n=NAV.find(x=>x[0]===t&&x[0]!=='#'&&x[2].includes(ME.role));const tab=n?t:'dash';
   $$('#nav a').forEach(a=>{const on=a.dataset.id===tab;a.classList.toggle('on',on);if(on)a.setAttribute('aria-current','page');else a.removeAttribute('aria-current')});(matchMedia('(hover:hover)').matches||setSide(false));
   tipHide();$('#view').innerHTML='<div class="load">Loading…</div>';window.scrollTo(0,0);
-  try{await V[tab]()}catch(e){$('#view').innerHTML=`<div class="panel"><b>Could not load this page.</b><p class="mut">${esc(e.message)}</p></div>`}
+  try{await V[tab](version)}catch(e){if(version===renderVersion)$('#view').innerHTML=`<div class="panel"><b>Could not load this page.</b><p class="mut">${esc(e.message)}</p></div>`}
 }
 window.addEventListener('hashchange',render);
 document.addEventListener('click',e=>{
@@ -798,8 +800,8 @@ ACT.stockout=id=>{const p=PC[id];modal('Stock out (not a sale): '+esc(p.brand+' 
 ACT.promoclear=async id=>{await api('/promo','POST',{items:[{product_id:+id,price:null}]});toast('Promo cleared');drawInvRefresh()};
 
 /* ---------- dashboard ---------- */
-V.dash=async()=>{
-  const d=await api('/dashboard'),o=can('owner'),p=ME.role==='purchasing',e=ME.role==='employee';cacheP(d.low);
+V.dash=async(version=renderVersion)=>{
+  const d=await api('/dashboard');if(version!==renderVersion)return;const o=can('owner'),p=ME.role==='purchasing',e=ME.role==='employee';cacheP(d.low);
   const k=[];
   if(o){
     k.push(kpi('Sales today',peso(d.today_revenue),npl(d.today_count,'invoice')));
@@ -832,8 +834,8 @@ V.dash=async()=>{
 
 /* ---------- inventory ---------- */
 let INV={q:'',st:'ALL',brand:'',type:''},INVL=[];
-V.inv=async()=>{
-  INVL=await api('/products');cacheP(INVL);
+V.inv=async(version=renderVersion)=>{
+  INVL=await api('/products');if(version!==renderVersion)return;cacheP(INVL);
   const brands=[...new Set(INVL.map(p=>p.brand))].sort(),types=[...new Set(INVL.map(p=>p.type))].sort();
   const chips=[['ALL','All'],['OK','In stock'],['LOW','Low'],['OUT','Out'],['SOON','Reorder soon'],['PROMO','On promo']];
   $('#view').innerHTML=head('Inventory','Search by brand, model, SKU, HP or shelf.',`${can('owner')?'<button class="b" data-act="add">+ Add product</button>':''}`)+
@@ -859,8 +861,8 @@ function drawInv(){
 
 /* ---------- point of sale ---------- */
 let CART=[],PRE=null,POSP=[],POSQ='',POSF={customer:'',phone:'',payment:'Cash',note:''};
-V.pos=async()=>{
-  const ps=await api('/products');POSP=ps;cacheP(ps);
+V.pos=async(version=renderVersion)=>{
+  const ps=await api('/products');if(version!==renderVersion)return;POSP=ps;cacheP(ps);
   $('#view').innerHTML=head('New Sale','Add items to the cart, then print the invoice.')+
    `<div class="posg"><div class="panel"><input type="search" id="pq" style="width:100%" placeholder="Scan SKU or type brand, model, HP…" value="${esc(POSQ)}"><div id="plist"></div></div><div class="panel cartp" id="cartbox"></div></div>`;
   $('#pq').oninput=e=>{POSQ=e.target.value;drawPList()};
@@ -908,18 +910,19 @@ ACT.pay=async()=>{
 
 /* ---------- sales history ---------- */
 let SF={from:'',to:'',status:'',q:'',user:''},SALES=[];
-V.sales=async()=>{
+V.sales=async(version=renderVersion)=>{
   const users=can('owner')?await api('/users'):[];
+  if(version!==renderVersion)return;
   $('#view').innerHTML=head('Sales History',ME.role==='employee'?'Your invoices only.':'All invoices.')+
    `<div class="bar"><input type="search" id="sq" placeholder="Invoice no. or customer" value="${esc(SF.q)}"><label style="margin:0">From</label><input type="date" id="sfrom" value="${SF.from}"><label style="margin:0">To</label><input type="date" id="sto" value="${SF.to}">
    <select id="sst"><option value="">All statuses</option><option value="PAID" ${SF.status==='PAID'?'selected':''}>Paid</option><option value="VOID" ${SF.status==='VOID'?'selected':''}>Void</option></select>
    ${can('owner')?`<select id="su"><option value="">All cashiers</option>${users.map(u=>`<option value="${esc(u.username)}" ${SF.user===u.username?'selected':''}>${esc(u.name)}</option>`).join('')}</select>`:''}</div><div class="panel" id="sl"></div>`;
   const ch=()=>{SF={q:$('#sq').value,from:$('#sfrom').value,to:$('#sto').value,status:$('#sst').value,user:$('#su')?$('#su').value:''};run(loadSales)};
   ['#sq','#sfrom','#sto','#sst','#su'].forEach(s=>{const el=$(s);if(el)el.onchange=ch});$('#sq').oninput=()=>{clearTimeout(window._sq);window._sq=setTimeout(ch,250)};
-  await loadSales();
+  await loadSales(version);
 };
-async function loadSales(){
-  const qs=Object.entries(SF).filter(([k,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');SALES=await api('/sales?'+qs);
+async function loadSales(version=renderVersion){
+  const qs=Object.entries(SF).filter(([k,v])=>v).map(([k,v])=>k+'='+encodeURIComponent(v)).join('&');const sales=await api('/sales?'+qs);if(version!==renderVersion)return;SALES=sales;
   const paid=SALES.filter(s=>s.status==='PAID'),cost=can('owner');
   const cols=[{h:'Invoice',f:s=>`<b>${esc(s.invoice_no)}</b>`,s:s=>s.invoice_no},{h:'Date',f:s=>dtm(s.ts),s:s=>s.ts},{h:'Customer',f:s=>esc(s.customer),s:s=>s.customer},{h:'Items',cls:'wrap',f:s=>esc(s.items)},{h:'Payment',f:s=>esc(s.payment)},{h:'Cashier',f:s=>esc(s.user),s:s=>s.user},
    {h:'Total',cls:'r',f:s=>peso(s.total),s:s=>s.total}];
@@ -936,8 +939,8 @@ ACT.svoid=id=>{const s=SALES.find(x=>x.id==id);modal('Void '+esc(s?s.invoice_no:
   async o=>{await api('/sales/'+id+'/void','POST',o);toast('Sale voided, stock restored');closeModal();loadSales()},'Void sale')};
 
 /* ---------- restock radar ---------- */
-V.low=async()=>{
-  const ps=await api('/lowstock');cacheP(ps);
+V.low=async(version=renderVersion)=>{
+  const ps=await api('/lowstock');if(version!==renderVersion)return;cacheP(ps);
   $('#view').innerHTML=head('Restock Radar','Products below minimum stock, or likely to run out before a new order arrives.',can('owner','purchasing')?`<button class="b" data-act="go" data-id="reorder">Plan purchase</button>`:'')+
    `<div class="note"><b>How it works:</b> <i>Days of cover</i> = available ÷ average daily sales (last 90 days). <i>Reorder point</i> = sales during the delivery lead time + minimum quantity.</div>
    <div class="panel">${dtable([{h:'Product',f:pname,s:p=>p.brand+p.model},{h:'Avail.',cls:'r',f:p=>`<b>${p.available}</b>`,s:p=>p.available},{h:'Min',cls:'r',f:p=>p.min_qty},
@@ -964,13 +967,13 @@ ACT.sim=async()=>{
 
 /* ---------- dead stock ---------- */
 let DDAYS=60,DEAD=[];
-V.dead=async()=>{
+V.dead=async(version=renderVersion)=>{
   $('#view').innerHTML=head('Dead Stock Recovery Planner','Slow-moving products, the money tied up in them, and suggested promo prices.')+
    `<div class="bar"><label style="margin:0">Show products unsold for at least</label><select id="dd">${[30,60,90,120,180].map(d=>`<option ${d==DDAYS?'selected':''}>${d}</option>`).join('')}</select> days</div><div id="dout"></div>`;
-  $('#dd').onchange=e=>{DDAYS=+e.target.value;run(loadDead)};await loadDead();
+  $('#dd').onchange=e=>{DDAYS=+e.target.value;run(loadDead)};await loadDead(version);
 };
-async function loadDead(){
-  const d=await api('/deadstock?days='+DDAYS);DEAD=d.items;
+async function loadDead(version=renderVersion){
+  const d=await api('/deadstock?days='+DDAYS);if(version!==renderVersion)return;DEAD=d.items;
   $('#dout').innerHTML=`<div class="kpis">${kpi('Slow-moving models',d.items.length)}${kpi('Capital tied up (cost)',peso(d.tied_capital),'',d.tied_capital?'warn':'')}</div>
    <div class="panel">${dtable([{h:'Product',f:pname},{h:'Units',cls:'r',f:p=>p.qty},{h:'Idle',cls:'r',f:p=>`<b class="neg">${p.idle_days}d</b>`,s:p=>p.idle_days},{h:'Capital tied',cls:'r',f:p=>peso(p.tied_capital),s:p=>p.tied_capital},{h:'Price now',cls:'r',f:priceCell},
     {h:'Suggested',cls:'r',f:p=>`<b>${peso(p.suggested_price)}</b> <span class="sub">(-${p.suggested_discount}%)</span>`},{h:'Margin/unit',cls:'r',f:p=>peso(p.margin_after)},{h:'Action',cls:'wrap',f:p=>esc(p.action)},
@@ -983,24 +986,25 @@ ACT.promoall=async()=>{if(!confirm(`Apply promo prices to ${npl(DEAD.filter(p=>!
 
 /* ---------- substitutes ---------- */
 let SUBID=null;
-V.sub=async()=>{
-  const ps=await api('/products');cacheP(ps);
+V.sub=async(version=renderVersion)=>{
+  const ps=await api('/products');if(version!==renderVersion)return;cacheP(ps);
   if(!ps.length){$('#view').innerHTML=head('Smart Substitute Finder','Find in-stock units with similar HP, type and price.')+'<div class="panel empty">There are no products yet.</div>';return}
   if(!SUBID||!PC[SUBID])SUBID=(ps.find(p=>p.status==='OUT')||ps[0]).id;
   $('#view').innerHTML=head('Smart Substitute Finder',"Find in-stock units with similar HP, type and price.")+
    `<div class="bar"><select id="sp" style="min-width:340px">${ps.map(p=>`<option value="${p.id}" ${p.id==SUBID?'selected':''}>${esc(p.brand+' '+p.model)} - ${p.status==='OUT'?'OUT OF STOCK':p.available+' available'}</option>`).join('')}</select></div><div id="sout"></div>`;
-  $('#sp').onchange=e=>{SUBID=+e.target.value;run(loadSub)};await loadSub();
+  $('#sp').onchange=e=>{SUBID=+e.target.value;run(loadSub)};await loadSub(version);
 };
-async function loadSub(){
-  const d=await api('/substitutes?product_id='+SUBID),t=d.target;
+async function loadSub(version=renderVersion){
+  const d=await api('/substitutes?product_id='+SUBID);if(version!==renderVersion)return;const t=d.target;
   $('#sout').innerHTML=`<p>Alternatives to <b>${esc(t.brand+' '+t.model)}</b> (${t.hp}HP, ${esc(t.type)}, ${peso(t.eff_price)}) ${pbadge(t)}</p>`+(d.substitutes.length?`<div class="sg">${d.substitutes.map((s,i)=>`<div class="card"><span class="sub">${i?'Option '+(i+1):'Best match'}</span><b>${esc(s.brand+' '+s.model)}</b><div style="font-size:18px;margin:4px 0">${priceCell(s)} <span class="sub ${s.price_diff>0?'neg':'pos'}">(${s.price_diff>=0?'+':''}${peso(s.price_diff)})</span></div><div class="sub">${s.available} available · ${esc(s.sku)} · shelf ${esc(s.location||'-')}</div><div class="sub">${s.reasons.join(' · ')}</div>${can('owner','employee')?`<button class="b sm" style="margin-top:8px" data-act="padd2" data-id="${s.id}">Sell this instead</button>`:''}</div>`).join('')}</div>`:'<p class="mut">No in-stock alternatives within 0.5HP.</p>');
 }
 ACT.padd2=id=>{cacheP([]);go('pos');setTimeout(()=>ACT.padd(id),400)};
 
 /* ---------- reports ---------- */
 let RDAYS=30;
-V.rep=async()=>{
+V.rep=async(version=renderVersion)=>{
   const d=await api('/reports?days='+RDAYS);
+  if(version!==renderVersion)return;
   const pays=d.payments.map((p,i)=>({label:p.payment,value:p.n,extra:trow('Revenue',peso(p.revenue)),color:['var(--c1)','var(--c2)','var(--c3)','var(--c4)','var(--ok)','var(--bad)'][i%6]}));
   $('#view').innerHTML=head('Reports & Analytics',`Last ${npl(d.days,'day')}.`,`<select id="rd">${[7,30,90,180,365].map(x=>`<option value="${x}" ${x==RDAYS?'selected':''}>Last ${x} days</option>`).join('')}</select>`)+
    `<div class="kpis">${kpi('Revenue',peso(d.revenue),npl(d.invoices,'invoice')+' · avg '+peso(d.avg_ticket))}${kpi('Gross profit',peso(d.profit),d.margin_pct+'% margin','pos')}${kpi('Units sold',num(d.units),'Discounts given '+peso(d.discounts))}
@@ -1015,23 +1019,23 @@ V.rep=async()=>{
 };
 
 /* ---------- risk center ---------- */
-V.alerts=async()=>{
-  const a=await api('/alerts'),ic={};$('#belln').textContent=a.length;
+V.alerts=async(version=renderVersion)=>{
+  const a=await api('/alerts');if(version!==renderVersion)return;const ic={};$('#belln').textContent=a.length;
   $('#view').innerHTML=head('Risk Center','Problems found automatically in stock and sales records.')+
    `<div class="kpis">${kpi('High priority',a.filter(x=>x.severity==='high').length,'','neg')}${kpi('Medium',a.filter(x=>x.severity==='med').length,'','warn')}${kpi('Low',a.filter(x=>x.severity==='low').length)}</div>`+
    (a.length?a.map(x=>`<div class="al ${x.severity}" data-act="go" data-id="${x.tab}" role="link" tabindex="0"><span class="dot" aria-hidden="true"></span><div class="albody"><div class="alhead"><b>${esc(x.title)}</b><span class="badge type">${esc(x.type)}</span></div><span class="mut">${esc(x.detail)}</span>${x.ts?`<div class="sub">${dtm(x.ts)}</div>`:''}</div>${chevIcon}</div>`).join(''):'<div class="panel empty">All clear. Nothing needs your attention.</div>');
 };
 
 /* ---------- audit ---------- */
-V.audit=async()=>{
+V.audit=async(version=renderVersion)=>{
   $('#view').innerHTML=head('Audit Trail','Record of changes to prices, stock, voids and users.')+`<div class="bar"><input type="search" id="aq" placeholder="Filter by action, user or detail"></div><div class="panel" id="al"></div>`;
-  const load=async()=>{const l=await api('/audit?q='+encodeURIComponent($('#aq').value));$('#al').innerHTML=dtable([{h:'Date / time',f:x=>dtm(x.ts),s:x=>x.ts},{h:'User',f:x=>esc(x.user),s:x=>x.user},{h:'Action',f:x=>`<code>${esc(x.action)}</code>`,s:x=>x.action},{h:'Detail',cls:'wrap',f:x=>esc(x.detail)}],l,{sort:0,dir:-1})};
-  $('#aq').oninput=()=>{clearTimeout(window._aq);window._aq=setTimeout(()=>run(load),250)};await load();
+  const load=async(pageVersion=renderVersion)=>{const search=$('#aq'),q=search?search.value:'',l=await api('/audit?q='+encodeURIComponent(q));if(pageVersion!==renderVersion)return;const out=$('#al');if(out)out.innerHTML=dtable([{h:'Date / time',f:x=>dtm(x.ts),s:x=>x.ts},{h:'User',f:x=>esc(x.user),s:x=>x.user},{h:'Action',f:x=>`<code>${esc(x.action)}</code>`,s:x=>x.action},{h:'Detail',cls:'wrap',f:x=>esc(x.detail)}],l,{sort:0,dir:-1})};
+  $('#aq').oninput=()=>{clearTimeout(window._aq);window._aq=setTimeout(()=>run(()=>load()),250)};await load(version);
 };
 
 /* ---------- users & settings ---------- */
-V.users=async()=>{
-  const all=await api('/users'),us=all.filter(u=>!u.pending),pend=all.filter(u=>u.pending),s=ME.settings;window._users=us;
+V.users=async(version=renderVersion)=>{
+  const all=await api('/users');if(version!==renderVersion)return;const us=all.filter(u=>!u.pending),pend=all.filter(u=>u.pending),s=ME.settings;window._users=us;
   const pendHtml=pend.length?`<div class="note bad"><b>${npl(pend.length,'staff request')}</b> waiting for your approval. Approve only people you know. Once approved they can see this shop's stock.</div><div class="panel"><h3>Staff requests</h3>${dtable([{h:'Username',f:u=>`<b>${esc(u.username)}</b>`},{h:'Name',f:u=>esc(u.name)},{h:'Wants to be',f:u=>({owner:'Shop Owner',employee:'Sales staff',purchasing:'Purchasing'})[u.role]},{h:'Requested',f:u=>dtm(u.created_at)},{h:'',f:u=>`<div class="tact"><button data-act="uok" data-id="${u.id}">Approve</button><button class="danger" data-act="uno" data-id="${u.id}">Reject</button></div>`}],pend)}</div>`:'';
   $('#view').innerHTML=head('Users & Settings','Accounts, roles and shop details.',`<button class="b" data-act="uform">+ Add user</button>`)+
    `${pendHtml}<div class="panel"><h3>Accounts</h3>${dtable([{h:'Username',f:u=>`<b>${esc(u.username)}</b>`},{h:'Name',f:u=>esc(u.name)},{h:'Role',f:u=>({owner:'Shop Owner',employee:'Sales staff',purchasing:'Purchasing'})[u.role]},{h:'Active',f:u=>u.active?badge('OK','active'):badge('CANCELLED','disabled')},{h:'Created',f:u=>d10(u.created_at)},{h:'',f:u=>`<div class="tact"><button data-act="uform" data-id="${u.id}">Edit</button></div>`}],us)}</div>

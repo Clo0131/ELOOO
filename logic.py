@@ -1039,6 +1039,9 @@ def h_register(c, ctx, q, body):
     owner = None
     if role == "owner":
         shop_name = text(body, "shop_name", maxlen=80)
+        exists = c.execute("SELECT 1 FROM settings WHERE key='shop_name' AND LOWER(TRIM(value))=LOWER(?) LIMIT 1", (shop_name,)).fetchone()
+        if exists:
+            raise ApiError("The shop name already exist.")
     else:
         owner = c.execute("SELECT * FROM users WHERE id=? AND role='owner' AND active=1 AND pending=0 AND owner_id=id",
                           (int(num(body, "owner_id", int, 1)),)).fetchone() if body.get("owner_id") else None

@@ -42,6 +42,7 @@ def _load_env():
 _load_env()
 DATABASE_URL = os.environ.get("DATABASE_URL", "")
 FMT = "%Y-%m-%d %H:%M:%S"
+PH_OFFSET = timedelta(hours=8)
 PW_ITER = 150_000
 SESSION_HOURS = 12
 MAX_EMP_DISCOUNT = 0.10
@@ -65,6 +66,13 @@ def days_ago(n):
 
 def parse_ts(s):
     return datetime.strptime(s, FMT)
+
+
+def ph_display_ts(s):
+    try:
+        return (parse_ts(s) + PH_OFFSET).strftime("%d %b %Y, %I:%M %p")
+    except (TypeError, ValueError):
+        return str(s or "")
 
 
 class ApiError(Exception):
@@ -595,6 +603,7 @@ def h_sale_void(c, ctx, q, body, sid):
 
 def invoice_html(c, sid):
     s = sale_with_items(c, sid)
+    local_ts = ph_display_ts(s["ts"])
     st = {r["key"]: r["value"] for r in c.execute("SELECT key, value FROM settings WHERE shop_id=?", (shop(),))}
     e = lambda x: (str(x if x is not None else "")).replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;")
     rows = "".join(f"<tr><td>{e(i['label'])}</td><td class=r>{i['qty']}</td><td class=r>{i['unit_price']:,.2f}</td><td class=r>{i['qty'] * i['unit_price']:,.2f}</td></tr>" for i in s["items"])
@@ -609,7 +618,7 @@ h1{{margin:0;font-size:24px;letter-spacing:-.02em}}.m{{color:#7b739e}}table{{wid
 .sig{{display:flex;gap:40px;margin-top:50px}}.sig div{{flex:1;border-top:1px solid #332d52;text-align:center;padding-top:4px;font-size:12px}}
 @media print{{body{{box-shadow:none;margin:0;padding:0;border-radius:0}}button{{display:none}}th{{-webkit-print-color-adjust:exact;print-color-adjust:exact}}}}</style></head><body>{stamp}
 <div class="top"><div><h1>{e(st.get('shop_name'))}</h1><div class="m">{e(st.get('address'))}<br>Tel {e(st.get('phone'))} &middot; TIN {e(st.get('tin'))}</div></div>
-<div style="text-align:right"><b style="font-size:18px">SALES INVOICE</b><br>{e(s['invoice_no'])}<br><span class="m">{e(s['ts'][:16])}</span></div></div>
+<div style="text-align:right"><b style="font-size:18px">SALES INVOICE</b><br>{e(s['invoice_no'])}<br><span class="m">{e(local_ts)}</span></div></div>
 <p><b>Customer:</b> {e(s['customer'])} {e(s['phone'] or '')}<br><b>Payment:</b> {e(s['payment'])} &nbsp; <b>Cashier:</b> {e(s['user'])}</p>
 <table><tr><th>Item</th><th class=r>Qty</th><th class=r>Unit price</th><th class=r>Amount</th></tr>{rows}</table>
 <table class="tot" style="width:320px;margin-left:auto"><tr><td>VATable sales</td><td class=r>{vatable:,.2f}</td></tr><tr><td>VAT (12%)</td><td class=r>{s['total'] - vatable:,.2f}</td></tr>

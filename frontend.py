@@ -559,10 +559,12 @@ const $=(s,r=document)=>r.querySelector(s), $$=(s,r=document)=>[...r.querySelect
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const peso=n=>'₱'+Number(n||0).toLocaleString('en-PH',{maximumFractionDigits:2});
 const num=n=>Number(n||0).toLocaleString('en-PH');
-const parseDT=s=>{const t=String(s||'');if(!t)return null;const d=new Date(t.includes('T')?t:t.replace(' ','T')+(t.length<=10?'T00:00:00':''));return isNaN(d)?null:d};
-const dtm=s=>{const d=parseDT(s);return d?d.toLocaleString('en-GB',{day:'2-digit',month:'short',year:'numeric',hour:'2-digit',minute:'2-digit',hour12:false}):String(s||'')};
-const d10=s=>{const d=parseDT(s);return d?d.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'}):String(s||'')};
-const dts=s=>{const d=parseDT(s);return d?d.toLocaleString('en-GB',{day:'2-digit',month:'short',hour:'2-digit',minute:'2-digit',hour12:false}):String(s||'')};
+const PH_TZ='Asia/Manila';
+const parseDT=s=>{let t=String(s||'').trim();if(!t)return null;if(/^\d{4}-\d{2}-\d{2}$/.test(t))t+='T00:00:00Z';else{t=t.replace(' ','T');if(!/(?:Z|[+-]\d{2}:?\d{2})$/i.test(t))t+='Z'}const d=new Date(t);return isNaN(d)?null:d};
+const localDT=(d,o)=>d.toLocaleString('en-GB',{timeZone:PH_TZ,...o}).replace(/\b(am|pm)\b/i,x=>x.toUpperCase());
+const dtm=s=>{const d=parseDT(s);return d?localDT(d,{day:'2-digit',month:'short',year:'numeric',hour:'numeric',minute:'2-digit',hour12:true}):String(s||'')};
+const d10=s=>{const d=parseDT(s);return d?d.toLocaleDateString('en-GB',{timeZone:PH_TZ,day:'2-digit',month:'short',year:'numeric'}):String(s||'')};
+const dts=s=>{const d=parseDT(s);return d?localDT(d,{day:'2-digit',month:'short',hour:'numeric',minute:'2-digit',hour12:true}):String(s||'')};
 const npl=(n,w)=>`${num(n)} ${w}${Number(n)===1?'':'s'}`;
 const xIcon='<svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M4 4l8 8M12 4l-8 8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></svg>';
 const chevIcon='<svg class="chev" viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path d="M6 3.5 10.5 8 6 12.5" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"/></svg>';
@@ -615,7 +617,7 @@ function tblHTML(id){
 }
 const TIP=$('#tip'),LC={};let _lc=0,_hc=null;
 const trow=(l,v,c)=>`<div class="tr"><span>${c?`<i style="background:${c}"></i>`:''}${esc(l)}</span><b>${v}</b></div>`;
-const fdate=l=>{const d=new Date(l+'T00:00:00');return isNaN(d)?l:d.toLocaleDateString('en-PH',{weekday:'short',month:'short',day:'numeric',year:'numeric'})};
+const fdate=l=>{const d=parseDT(l);return d?d.toLocaleDateString('en-PH',{timeZone:PH_TZ,weekday:'short',month:'short',day:'numeric',year:'numeric'}):l};
 
 function lineChart(labels,series,counts,opts={}){
   const vw=innerWidth;
